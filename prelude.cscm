@@ -1,10 +1,12 @@
 (define first car)
 (define (second x) (car (cdr x)))
 (define (third x) (car (cdr (cdr x))))
-(define (map f xs)
-  (if (null? xs)
-      '()
-      (cons (f (car xs)) (map f (cdr xs)))))
+
+(define (zero? x) (eq? x 0))
+(define (abs x)
+  (if (< x 0)
+      (- 0 x)
+      x))
 (defmacro (and . xs)
   (cond
     [(null? xs) #t]
@@ -12,15 +14,24 @@
     [else (list 'if (car xs)
                 (cons 'and (cdr xs))
                 #f)]))
+(defmacro (let ps . vs)
+  (cons (cons 'λ (cons (map first ps) vs))
+        (map second ps)))
 (defmacro (quasiquote x)
-  (define (skip n x) 0) ; Fix me
-  (cond
-    [(pair? x)
-     (let ([f (first x)])
-       (cond
-         [(eq? f 'unquote) (second x)]
-         [(and (pair? f) (eq? (first f) 'unquote-splicing))
-          (list 'append (second f) (cons 'quasiquote (cdr x)))]
-         [(eq? f 'quasiquote) (list 'list ''quasiquote (skip 1 (second x)))]
-         [else (list 'cons (list 'quasiquote f) (list 'quasiquote (cdr x)))]))]
-    [else (list 'quote x)]))
+  (define (Q n x)
+    (cond
+      [(pair? x)
+       (let ([f (first x)])
+         (cond
+           [(eq? f 'unquote)
+            (if (zero? n)
+                (second x)
+                (list 'list ''unquote (Q (- n 1) (second x))))]
+           [(and (pair? f) (eq? (first f) 'unquote-splicing))
+            (if (zero? n)
+                (list 'append (second f) (Q 0 (cdr x)))
+                (list 'cons (list 'list ''unquote-splicing (Q (- n 1) (second f))) (Q n (cdr x))))]
+           [(eq? f 'quasiquote) (list 'list ''quasiquote (Q (+ n 1) (second x)))]
+           [else (list 'cons (Q n f) (Q n (cdr x)))]))]
+      [else (list 'quote x)]))
+  (Q 0 x))

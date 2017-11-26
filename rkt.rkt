@@ -13,6 +13,7 @@
 
 ;;  You should have received a copy of the GNU Affero General Public License
 ;;  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+(provide run run-sexp sexp-> ->sexp)
 (define-syntax-rule (include/quote/list f)
   (include/reader
    f
@@ -26,14 +27,18 @@
        (if (null? x)
            eof
            (datum->syntax #f (list 'quote x)))))))
-(define (run x) (EVAL (make-hash) genv (QUOTE (append prelude (list x)))))
-(define (run-sexp x) (run (sexp-> x)))
+(define (run x) (unQUOTE (EVAL (make-hash) genv (QUOTE (append prelude (list x))))))
+(define (run-sexp x) (->sexp (run (sexp-> x))))
 (define QUOTE
   (match-lambda
-    ['() '()]
+    [(and x (or (? boolean?) (? string?) (? number?) '())) x]
     [(list a ... "." d) `(,@(map QUOTE a) . ,(QUOTE d))]
-    [(list x ...) (map QUOTE x)]
-    [(and x (or (? boolean?) (? string?) (? number?))) x]))
+    [(list x ...) (map QUOTE x)]))
+(define unQUOTE
+  (match-lambda
+    [(and x (or (? boolean?) (? string?) (? number?) '())) x]
+    [(list-rest a ... d) `(,@(map unQUOTE a) "." ,(unQUOTE d))]
+    [(list x ...) (map unQUOTE x)]))
 (define sexp->
   (match-lambda
     [(? symbol? x) (symbol->string x)]
@@ -43,20 +48,28 @@
     ['() '()]
     [(list x ...) (map sexp-> x)]
     [(list-rest a ... d) `(,@(map sexp-> a) "." ,(sexp-> d))]))
+(define ->sexp
+  (match-lambda
+    [(? string? x) (string->symbol x)]
+    [(and x (or (? number?) (? boolean?) '())) x]
+    [(list a ... "." d) `(,@(map ->sexp a) . ,(->sexp d))]
+    [(list x ...) (map ->sexp x)]))
 (define (macroexpand ms x)
   (if (pair? x)
       (let ([a (car x)])
         (cond
-          [(equal? a "defmacro")
-           (match x
-             [`("defmacro" ,f ,@x)
-              (let-values ([(f x) (match `(,f ,@x)
-                                    [`(,(? string? f) ,x) (values f x)]
-                                    [`(,(cons (? string? f) args) ,@x) (values f `("λ" ,args ,@x))])])
-                (hash-set! ms f (EVAL ms genv x))
-                "void")])]
           [(hash-ref ms a #f) => (λ (m) (macroexpand ms (apply m (cdr x))))]
           [else x]))
+      x))
+(define (rundefmacro ms env x)
+  (if (and (pair? x) (equal? (car x) "defmacro"))
+      (match x
+        [`("defmacro" ,f ,@x)
+         (let-values ([(f x) (match `(,f ,@x)
+                               [`(,(? string? f) ,x) (values f x)]
+                               [`(,(cons (? string? f) args) ,@x) (values f `("λ" ,args ,@x))])])
+           (hash-set! ms f (EVAL ms env x))
+           "void")])
       x))
 (define (EVAL ms env x)
   (match (macroexpand ms x)
@@ -86,7 +99,7 @@
       (let ([defs (map DEFINE defs)])
         (letrec ([ndefs (map (λ (x) (cons (car x) (delay (EVAL ms newenv (cdr x))))) defs)]
                  [newenv (hash-append env ndefs)])
-          (last (map (λ (x) (EVAL ms newenv x)) rs)))))))
+          (last (map (λ (x) (EVAL ms newenv (rundefmacro ms newenv x))) rs)))))))
 (define (hash-append hash ps)
   (foldl (λ (p h) (hash-set h (car p) (cdr p))) hash ps))
 (define DEFINE
@@ -109,6 +122,8 @@
    "null?" null?
    "list?" list?
    "list" list
+   "map" map
+   "append" append
 
    "void" (void)
    "void?" void?
