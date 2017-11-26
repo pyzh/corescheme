@@ -96,9 +96,9 @@
 (struct atom ([v #:mutable]))
 (define genv
   (hash
-   "eq?" eq?
+   "eq?" equal?
    "equal?" equal?
-   "eval" (λ (x) (EVAL genv x))
+   "eval" (λ (x) (EVAL (make-hash) genv x))
    "apply" apply
    "procedure?" procedure?
 
