@@ -52,7 +52,7 @@
              [`("defmacro" ,f ,@x)
               (let-values ([(f x) (match `(,f ,@x)
                                     [`(,(? string? f) ,x) (values f x)]
-                                    [`(,(cons (? string? f) args) ,@x) (values f `(λ ,args ,@x))])])
+                                    [`(,(cons (? string? f) args) ,@x) (values f `("λ" ,args ,@x))])])
                 (hash-set! ms f (EVAL ms genv x))
                 "void")])]
           [(hash-ref ms a #f) => (λ (m) (macroexpand ms (apply m (cdr x))))]
