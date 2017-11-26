@@ -30,3 +30,6 @@
         (name2 'y))
     `(a `(b ,,name1 ,',name2 d) e)) '(a `(b ,x ,'y d) e)]
  )
+(test
+ [(add-between '(x y z) 'and) '(x and y and z)]
+ [(add-between '(x) 'and) '(x)])

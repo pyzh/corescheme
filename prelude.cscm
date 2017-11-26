@@ -1,12 +1,18 @@
 (define first car)
 (define (second x) (car (cdr x)))
 (define (third x) (car (cdr (cdr x))))
+(define (add-between xs v)
+  (cond
+    [(null? xs) '()]
+    [(null? (cdr xs)) xs]
+    [else (cons (car xs) (cons v (add-between (cdr xs) v)))]))
 
 (define (zero? x) (eq? x 0))
 (define (abs x)
   (if (< x 0)
       (- 0 x)
       x))
+
 (defmacro (and . xs)
   (cond
     [(null? xs) #t]
