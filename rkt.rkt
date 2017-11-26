@@ -31,17 +31,22 @@
     [(list x ...) (map sexp-> x)]
     [(list-rest a ... d) `(,@(map sexp-> a) "." ,(sexp-> d))]))
 (define (macroexpand ms x)
-  (match x
-    [`(defmacro ,f ,@x)
-     (let-values ([(f x) (match `(,f ,@x)
-                           [`(,(? string? f) ,x) (values f x)]
-                           [`(,(cons (? string? f) args) ,@x) (values f `(λ ,args ,@x))])])
-       (hash-set! ms f (EVAL ms genv x))
-       "void")]
-    [(cons (app (λ (x) (hash-ref ms x #f)) (not #f) f) xs) (macroexpand ms (apply f xs))]
-    [x x]))
+  (if (pair? x)
+      (let ([a (car x)])
+        (cond
+          [(eq? a "defmacro")
+           (match x
+             [`("defmacro" ,f ,@x)
+              (let-values ([(f x) (match `(,f ,@x)
+                                    [`(,(? string? f) ,x) (values f x)]
+                                    [`(,(cons (? string? f) args) ,@x) (values f `(λ ,args ,@x))])])
+                (hash-set! ms f (EVAL ms genv x))
+                "void")])]
+          [(hash-ref ms a #f) => (λ (m) (macroexpand ms (apply m (cdr x))))]
+          [else x]))
+      x))
 (define (EVAL ms env x)
-  (match x
+  (match (macroexpand ms x)
     [`("if" ,b ,x ,y) (if (EVAL ms env b) (EVAL ms env x) (EVAL ms env y))]
     [`("quote" ,x) x]
     [`(,(or "lambda" "λ") ,args ,@b) (λ xs (BEGIN ms (unify env args xs) b))]
@@ -58,9 +63,9 @@
 (define (prebegin ms xs)
   (if (null? xs)
       '()
-  (match (macroexpand ms (car xs))
-    [`("begin" ,@x) (prebegin ms (append x (cdr xs)))]
-    [x (cons x (prebegin ms (cdr xs)))])))
+      (match (macroexpand ms (car xs))
+        [`("begin" ,@x) (prebegin ms (append x (cdr xs)))]
+        [x (cons x (prebegin ms (cdr xs)))])))
 (define (BEGIN ms env xs)
   (let ([xs (prebegin ms xs)])
     (let-values ([(defs rs) (partition (match-lambda [`("define" ,s ,@v) #t] [_ #f]) xs)])
@@ -115,7 +120,7 @@
    "map?" hash?
    "map-set" (λ (m k v) (hash-set
                          (if (immutable? m)
-                            m
+                             m
                              (make-immutable-hash (hash->list m)))
                          k
                          v))
