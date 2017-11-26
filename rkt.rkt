@@ -13,7 +13,20 @@
 
 ;;  You should have received a copy of the GNU Affero General Public License
 ;;  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-(define (run x) (EVAL (make-hash) genv (QUOTE x)))
+(define-syntax-rule (include/quote/list f)
+  (include/reader
+   f
+   (λ (source-name in)
+     (define (do)
+       (let ([x (read in)])
+         (if (eof-object? x)
+             '()
+             (cons x (do)))))
+     (let ([x (do)])
+       (if (null? x)
+           eof
+           (datum->syntax #f (list 'quote x)))))))
+(define (run x) (EVAL (make-hash) genv (QUOTE (append prelude (list x)))))
 (define (run-sexp x) (run (sexp-> x)))
 (define QUOTE
   (match-lambda
@@ -78,7 +91,7 @@
 (define DEFINE
   (match-lambda
     [`("define" ,(and (? string? f)) ,x) (cons f x)]
-    [`("define" ,(cons f args) ,@x) (DEFINE f `(λ ,args ,@x))]))
+    [`("define" ,(cons f args) ,@x) (DEFINE `("define" ,f ("λ" ,args ,@x)))]))
 (struct atom ([v #:mutable]))
 (define genv
   (hash
@@ -94,6 +107,7 @@
    "pair?" pair?
    "null?" null?
    "list?" list?
+   "list" list
 
    "void" (void)
    "void?" void?
@@ -138,3 +152,4 @@
                           x))
    "atom?" atom?
    ))
+(define prelude (cons "begin" (sexp-> (include/quote/list "prelude.cscm"))))
