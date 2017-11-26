@@ -17,3 +17,8 @@
     [(null? xs) ""]
     [(list? (car xs)) (apply ++ (append (car xs) (cdr xs)))]
     [else (string-append (car xs) (apply ++ (cdr xs)))]))
+(define (id s) (string-append "z" (->azAZ09_ s)))
+(define genvar!
+  (let ([c (atom! 0)])
+    (λ ()
+      (atom-map! (λ (x) (+ x 1)) c))))
