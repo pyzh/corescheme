@@ -47,7 +47,7 @@
   (if (pair? x)
       (let ([a (car x)])
         (cond
-          [(eq? a "defmacro")
+          [(equal? a "defmacro")
            (match x
              [`("defmacro" ,f ,@x)
               (let-values ([(f x) (match `(,f ,@x)
@@ -64,6 +64,7 @@
     [`("quote" ,x) x]
     [`(,(or "lambda" "λ") ,args ,@b) (λ xs (BEGIN ms (unify env args xs) b))]
     [`("begin" ,@b) (BEGIN ms env b)]
+    [`("cond" ,@b) (COND ms env b)]
     [(and x (or (? number?) (? boolean?))) x]
     [(? string? x) (force (hash-ref env x))]
     ['() '()]
@@ -153,3 +154,9 @@
    "atom?" atom?
    ))
 (define prelude (cons "begin" (sexp-> (include/quote/list "prelude.cscm"))))
+(define (COND ms env xs)
+  (match (car xs)
+    [`["else" ,@x] (match (cdr xs) ['() (BEGIN ms env x)])]
+    [`[,c ,@x] (if (EVAL ms env c)
+                   (BEGIN ms env x)
+                   (COND ms env (cdr xs)))]))
