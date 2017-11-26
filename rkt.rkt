@@ -132,6 +132,13 @@
    "string-append" string-append
    "str->strlist" (λ (s) (map string (string->list s)))
    "genstr" (λ () (symbol->string (gensym)))
+   "->azAZ09_" (λ (s)
+                (apply string-append
+                       (map
+                        (λ (x) (if (or (char-alphabetic? x) (char-numeric? x))
+                                   (string x)
+                                   (string-append "_" (number->string (char->integer x)))))
+                        (string->list s))))
 
    "number?" number?
    "+" +
