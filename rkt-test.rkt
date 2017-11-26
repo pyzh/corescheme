@@ -25,4 +25,8 @@
  [`(( foo ,(- 10 3)) ,@(cdr '(c)) . ,(car '(cons))) '((foo 7.0) . cons)]
  [(let ((foo '(foo bar)) (@baz 'baz))
     `(list ,@foo , @baz)) '(list foo bar baz)]
+ [`(a `(b ,(+ 1 2) ,(foo ,(+ 1 3) d) e) f) '(a `(b ,(+ 1.0 2.0) ,(foo 4.0 d) e) f)]
+ [(let ((name1 'x)
+        (name2 'y))
+    `(a `(b ,,name1 ,',name2 d) e)) '(a `(b ,x ,'y d) e)]
  )
