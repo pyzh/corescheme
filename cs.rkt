@@ -13,7 +13,7 @@
 
 ;;  You should have received a copy of the GNU Affero General Public License
 ;;  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-(provide run run-sexp sexp-> ->sexp)
+(provide run-xs run run-sexps run-sexp sexp-> ->sexp)
 (define-syntax-rule (include/quote/list f)
   (include/reader
    f
@@ -27,8 +27,11 @@
        (if (null? x)
            eof
            (datum->syntax #f (list 'quote x)))))))
-(define (run x) (unQUOTE (EVAL (make-hash) genv (QUOTE (append prelude (list x))))))
-(define (run-sexp x) (->sexp (run (sexp-> x))))
+
+(define (run-xs xs) (unQUOTE (EVAL (hash) genv (QUOTE (append prelude xs)))))
+(define (run x) (run-xs (list x)))
+(define (run-sexps xs) (->sexp (run-xs (map sexp-> xs))))
+(define (run-sexp x) (run-sexps (list x)))
 (define QUOTE
   (match-lambda
     [(and x (or (? boolean?) (? string?) (? number?) '())) x]
@@ -55,25 +58,16 @@
     [(list a ... "." d) `(,@(map ->sexp a) . ,(->sexp d))]
     [(list x ...) (map ->sexp x)]))
 (define (macroexpand ms x)
-  (if (pair? x)
-      (let ([a (car x)])
-        (cond
-          [(hash-ref ms a #f) => (λ (m) (macroexpand ms (apply m (cdr x))))]
-          [else x]))
-      x))
-(define (rundefmacro ms env x)
-  (if (and (pair? x) (equal? (car x) "defmacro"))
-      (match x
-        [`("defmacro" ,f ,@x)
-         (let-values ([(f x) (match `(,f ,@x)
-                               [`(,(? string? f) ,x) (values f x)]
-                               [`(,(cons (? string? f) args) ,@x) (values f `("λ" ,args ,@x))])])
-           (hash-set! ms f (EVAL ms env x))
-           "void")])
-      x))
+  (let ([b (and (pair? x) (hash-ref ms (car x) #f))])
+    (if b
+        (macroexpand ms (apply (force b) (cdr x)))
+        x)))
 (define (EVAL ms env x)
   (match (macroexpand ms x)
-    [`("if" ,b ,x ,y) (if (EVAL ms env b) (EVAL ms env x) (EVAL ms env y))]
+    [`("if" ,b ,x ,y)
+     (if (EVAL ms env b)
+         (EVAL ms env x)
+         (EVAL ms env y))]
     [`("quote" ,x) x]
     [`(,(or "lambda" "λ") ,args ,@b) (λ xs (BEGIN ms (unify env args xs) b))]
     [`("begin" ,@b) (BEGIN ms env b)]
@@ -87,25 +81,49 @@
     [(? string? s) (hash-set env s xs)]
     ['() (match xs ['() env])]
     [(cons (? string? s) args) (unify (hash-set env s (car xs)) args (cdr xs))]))
-(define (prebegin ms xs)
+(define (preBEGIN ms xs)
   (if (null? xs)
       '()
-      (match (macroexpand ms (car xs))
-        [`("begin" ,@x) (prebegin ms (append x (cdr xs)))]
-        [x (cons x (prebegin ms (cdr xs)))])))
-(define (BEGIN ms env xs)
-  (let ([xs (prebegin ms xs)])
-    (let-values ([(defs rs) (partition (match-lambda [`("define" ,s ,@v) #t] [_ #f]) xs)])
-      (let ([defs (map DEFINE defs)])
-        (letrec ([ndefs (map (λ (x) (cons (car x) (delay (EVAL ms newenv (cdr x))))) defs)]
-                 [newenv (hash-append env ndefs)])
-          (last (map (λ (x) (EVAL ms newenv (rundefmacro ms newenv x))) rs)))))))
-(define (hash-append hash ps)
-  (foldl (λ (p h) (hash-set h (car p) (cdr p))) hash ps))
+      (let ([x (macroexpand ms (car xs))] [xs (cdr xs)])
+        (match x
+          [`(begin ,@b) (preBEGIN ms (append b xs))]
+          [x (cons x (preBEGIN ms xs))]))))
 (define DEFINE
   (match-lambda
-    [`("define" ,(and (? string? f)) ,x) (cons f x)]
+    [`("define" ,(? string? f) ,x) (cons f x)]
     [`("define" ,(cons f args) ,@x) (DEFINE `("define" ,f ("λ" ,args ,@x)))]))
+(define defmacro
+  (match-lambda
+    [`("defmacro" ,(cons (? string? f) args) ,@x) (cons f `("λ" ,args ,@x))]
+    [`("defmacro" ,(? string? f) ,x) (cons f x)]))
+(define (hash-append hash ps)
+  (foldl (λ (p h) (hash-set h (car p) (cdr p))) hash ps))
+(define (BEGIN ms env xs)
+  (let ([xs (preBEGIN ms xs)])
+    (let-values ([(defs xs) (partition (match-lambda [`("define" ,s ,@v) #t] [_ #f]) xs)])
+      (let-values
+          ([(defs) (map DEFINE defs)]
+           [(macs xs) (partition (match-lambda [`("defmacro" ,s ,@v) #t] [_ #f]) xs)])
+        (let ([macs (map defmacro macs)])
+          (letrec
+              ([ndefs
+                (map (λ (x)
+                       (cons (car x) (delay (EVAL newms newenv (cdr x))))) defs)]
+               [newenv (hash-append env ndefs)]
+               [nmacs
+                (map (λ (x)
+                       (cons (car x) (delay (EVAL newms newenv (cdr x))))) macs)]
+               [newms (hash-append ms nmacs)])
+            (if (null? nmacs)
+                (last (map (λ (x) (EVAL newms newenv x)) xs))
+                (BEGIN newms newenv xs))))))))
+(define (COND ms env xs)
+  (match (car xs)
+    [`["else" ,@x] (match (cdr xs) ['() (BEGIN ms env x)])]
+    [`[,c ,@x] (if (EVAL ms env c)
+                   (BEGIN ms env x)
+                   (COND ms env (cdr xs)))]))
+(define prelude (cons "begin" (sexp-> (include/quote/list "prelude.cscm"))))
 (struct atom ([v #:mutable]))
 (define genv
   (hash
@@ -175,10 +193,3 @@
                           x))
    "atom?" atom?
    ))
-(define prelude (cons "begin" (sexp-> (include/quote/list "prelude.cscm"))))
-(define (COND ms env xs)
-  (match (car xs)
-    [`["else" ,@x] (match (cdr xs) ['() (BEGIN ms env x)])]
-    [`[,c ,@x] (if (EVAL ms env c)
-                   (BEGIN ms env x)
-                   (COND ms env (cdr xs)))]))
