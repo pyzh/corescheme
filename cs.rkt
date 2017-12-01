@@ -129,7 +129,7 @@
   (hash
    "eq?" equal?
    "equal?" equal?
-   "eval" (λ (x) (EVAL (make-hash) genv x))
+   "eval" (λ (x) (EVAL (hash) genv x))
    "apply" apply
    "procedure?" procedure?
 
