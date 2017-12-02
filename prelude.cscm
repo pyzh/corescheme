@@ -15,6 +15,7 @@
 (define first car)
 (define (second x) (car (cdr x)))
 (define (third x) (car (cdr (cdr x))))
+(define (fourth x) (car (cdr (cdr (cdr x)))))
 (define (add-between xs v)
   (cond
     [(null? xs) '()]

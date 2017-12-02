@@ -34,29 +34,37 @@
 (define (run-sexp x) (run-sexps (list x)))
 (define QUOTE
   (match-lambda
-    [(and x (or (? boolean?) (? string?) (? number?) '())) x]
-    [(list a ... "." d) `(,@(map QUOTE a) . ,(QUOTE d))]
-    [(list x ...) (map QUOTE x)]))
+    [(? pair? x)
+     (match x
+       [(list a ... "." d) `(,@(map QUOTE a) . ,(QUOTE d))]
+       [(list x ...) (map QUOTE x)])]
+    [x x]))
 (define unQUOTE
   (match-lambda
-    [(and x (or (? boolean?) (? string?) (? number?) '())) x]
-    [(list-rest a ... d) `(,@(map unQUOTE a) "." ,(unQUOTE d))]
-    [(list x ...) (map unQUOTE x)]))
+    [(? pair? x)
+     (match x
+       [(list-rest a ... d) `(,@(map unQUOTE a) "." ,(unQUOTE d))]
+       [(list x ...) (map unQUOTE x)])]
+    [x x]))
 (define sexp->
   (match-lambda
     [(? symbol? x) (symbol->string x)]
     [(? string? x) (list "quote" x)]
-    [(? number? x) (+ x 0.0)]
-    [(? boolean? x) x]
-    ['() '()]
-    [(list x ...) (map sexp-> x)]
-    [(list-rest a ... d) `(,@(map sexp-> a) "." ,(sexp-> d))]))
+    [(? number? x) (exact->inexact x)]
+    [(? pair? x)
+     (match x
+       [(list x ...) (map sexp-> x)]
+       [(list-rest a ... d) `(,@(map sexp-> a) "." ,(sexp-> d))])]
+    [x x]))
 (define ->sexp
   (match-lambda
     [(? string? x) (string->symbol x)]
-    [(and x (or (? number?) (? boolean?) '())) x]
-    [(list a ... "." d) `(,@(map ->sexp a) . ,(->sexp d))]
-    [(list x ...) (map ->sexp x)]))
+    [(? number? x) (inexact->exact x)]
+    [(? pair? x)
+     (match x
+       [(list a ... "." d) `(,@(map ->sexp a) . ,(->sexp d))]
+       [(list x ...) (map ->sexp x)])]
+    [x x]))
 (define (macroexpand ms x)
   (let ([b (and (pair? x) (hash-ref ms (car x) #f))])
     (if b
@@ -86,7 +94,7 @@
       '()
       (let ([x (macroexpand ms (car xs))] [xs (cdr xs)])
         (match x
-          [`(begin ,@b) (preBEGIN ms (append b xs))]
+          [`("begin" ,@b) (preBEGIN ms (append b xs))]
           [x (cons x (preBEGIN ms xs))]))))
 (define DEFINE
   (match-lambda
@@ -123,7 +131,32 @@
     [`[,c ,@x] (if (EVAL ms env c)
                    (BEGIN ms env x)
                    (COND ms env (cdr xs)))]))
-(define prelude (cons "begin" (sexp-> (include/quote/list "prelude.cscm"))))
+(define csprelude
+  '((defmacro (define-record-type name
+                constructor pred . fields)
+      (define (deffs n ref rset! fs)
+        (if (null? fs)
+            '()
+            (let ([f (car fs)] [fs (cdr fs)])
+              (if (null? (cdr (cdr f)))
+                  (cons
+                   `(define (,(second f) x) (,ref x ,n))
+                   (deffs (+ n 1) ref rset! fs))
+                  (append
+                   `((define (,(second f) x) (,ref x ,n))
+                     (define (,(third f) x v) (,rset! x ,n v)))
+                   (deffs (+ n 1) ref rset! fs))))))
+      (let ([s (genstr)] [make (genstr)] [ref (genstr)] [rset! (genstr)])
+        `(begin
+           (define ,s (__MK_REC__ (quote ,name) ,(length fields)))
+           (define ,make (first ,s))
+           (define ,pred (second ,s))
+           (define ,ref (third ,s))
+           (define ,rset! (fourth ,s))
+           (define ,constructor (,make ,@(map first fields)))
+           ,@(deffs 0 ref rset! fields)
+           )))))
+(define prelude (cons "begin" (sexp-> (append (include/quote/list "prelude.cscm") csprelude))))
 (struct atom ([v #:mutable]))
 (define genv
   (hash
@@ -140,6 +173,7 @@
    "null?" null?
    "list?" list?
    "list" list
+   "length" (λ (x) (exact->inexact (length x)))
    "map" map
    "append" append
 
@@ -151,12 +185,12 @@
    "str->strlist" (λ (s) (map string (string->list s)))
    "genstr" (λ () (symbol->string (gensym)))
    "->azAZ09_" (λ (s)
-                (apply string-append
-                       (map
-                        (λ (x) (if (or (char-alphabetic? x) (char-numeric? x))
-                                   (string x)
-                                   (string-append "_" (number->string (char->integer x)))))
-                        (string->list s))))
+                 (apply string-append
+                        (map
+                         (λ (x) (if (or (char-alphabetic? x) (char-numeric? x))
+                                    (string x)
+                                    (string-append "_" (number->string (char->integer x)))))
+                         (string->list s))))
 
    "number?" number?
    "+" +
@@ -192,4 +226,12 @@
                           (set-atom-v! a x)
                           x))
    "atom?" atom?
+
+   "__MK_REC__" (λ (name c)
+                  (let-values ([(st make ? ref rset!)
+                                (make-struct-type (string->symbol name) #f (inexact->exact c) 0)])
+                    (list make
+                          ?
+                          (λ (x k) (ref x (inexact->exact k)))
+                          (λ (x k v) (rset! x (inexact->exact k) v)))))
    ))
