@@ -43,8 +43,8 @@
   (match-lambda
     [(? pair? x)
      (match x
-       [(list-rest a ... d) `(,@(map unQUOTE a) "." ,(unQUOTE d))]
-       [(list x ...) (map unQUOTE x)])]
+       [(list x ...) (map unQUOTE x)]
+       [(list-rest a ... d) `(,@(map unQUOTE a) "." ,(unQUOTE d))])]
     [x x]))
 (define sexp->
   (match-lambda
@@ -246,5 +246,7 @@
                           ?
                           (λ (x k) (ref x (inexact->exact k)))
                           (λ (x k v) (rset! x (inexact->exact k) v)))))
+   "PRELUDE" (delay (QUOTE (sexp-> prelude)))
    ))
-(run-sexps (append csprelude (include/quote/list "prelude.cscm")))
+(define prelude (include/quote/list "prelude.cscm"))
+(run-sexps (append csprelude prelude '(__PRELUDE_END__)))

@@ -89,5 +89,3 @@
                     `(,f ,ff
                          ,(string-append "set-" (string-append ff "!")))))
                   `(,f ,(string-append name (string-append "-" f))))) fs)))
-
-__PRELUDE_END__
