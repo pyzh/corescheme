@@ -203,17 +203,17 @@
            [(eq? f 'vector?) (EVAL (first xs) (λ (x)
                                               (k (++ "("x" instanceof Array)"))))]
            [(or (eq? f '->string) (eq? f 'number->string))
-            (EVAL (first x) (λ (x)
+            (EVAL (first xs) (λ (x)
                             (k (++ "String("x")"))))]
            [(or (eq? f '->number) (eq? f 'string->number))
-            (EVAL (first x) (λ (x)
+            (EVAL (first xs) (λ (x)
                             (k (++ "Number("x")"))))]
            [(eq? f 'is-a?)
-            (EVAL (first x) (λ (x)
-                              (EVAL (second x) (λ (c)
+            (EVAL (first xs) (λ (x)
+                              (EVAL (second xs) (λ (c)
                                                  (k (++ "("x" instanceof "c")"))))))]
            [(eq? f 'typeof)
-            (EVAL (first x) (λ (x) (k (++ "(typeof "x")"))))]
+            (EVAL (first xs) (λ (x) (k (++ "(typeof "x")"))))]
            [(eq? f 'new)
             (let ([x (car xs)] [xs (cdr xs)])
               (EVAL x

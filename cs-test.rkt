@@ -18,9 +18,9 @@
 (define-syntax-rule (test [c r] ...)
   (begin
     (check-equal? (run-sexp (quote c)) (quote r)) ...))
-(define-syntax-rule (load/test f [c r] ...)
+(define-syntax-rule (load/test [f ...] [c r] ...)
   (check-equal?
-   (run-sexps (append (include/quote/list f)
+   (run-sexps (append (include/quote/list f) ...
                       (list (quote (list c ...)))))
    (list (quote r) ...)))
 (test
@@ -67,7 +67,7 @@
        (cell-content a-cell)
        (cell? a-cell)))) (0 1 #t)])
 (load/test
- "macroexpand.cscm"
+ ["macroexpand.cscm"]
  [(macroexpand '(begin
                   (defmacro (k a)
                     `(+ ,a ,a))
@@ -79,9 +79,9 @@
            (add-between
             (λ (xs v)
               (cond
-               ((null? xs) '())
-               ((null? (cdr xs)) xs)
-               (else (cons (car xs) (cons v (add-between (cdr xs) v)))))))
+                ((null? xs) '())
+                ((null? (cdr xs)) xs)
+                (else (cons (car xs) (cons v (add-between (cdr xs) v)))))))
            (zero? (λ (x) (eq? x 0)))
            (abs (λ (x) (if (< x 0) (- 0 x) x)))
            (not (λ (x) (if x #f #t)))
@@ -89,53 +89,55 @@
             (λ (x)
               ((λ (r)
                  (if (pair? r)
-                   (car r)
-                   (car (atom-map! (λ (v) (list (r))) (%force x)))))
+                     (car r)
+                     (car (atom-map! (λ (v) (list (r))) (%force x)))))
                (atom-get/set!
                 (%force x)
                 (λ (v)
                   (cond
-                   ((pair? v) (cons v v))
-                   ((not v) (error '|force: halted| x))
-                   (else (cons v #f))))))))
+                    ((pair? v) (cons v v))
+                    ((not v) (error '|force: halted| x))
+                    (else (cons v #f))))))))
            (promise-running? (λ (x) (not (atom-get (%force x)))))
            (promise-forced? (λ (x) (pair? (atom-get (%force x)))))
            (error (λ (x) (raise (ERROR x))))
            (++
             (λ xs
               (cond
-               ((null? xs) '||)
-               ((list? (car xs)) (apply ++ (append (car xs) (cdr xs))))
-               (else (string-append (car xs) (apply ++ (cdr xs)))))))
+                ((null? xs) '||)
+                ((list? (car xs)) (apply ++ (append (car xs) (cdr xs))))
+                (else (string-append (car xs) (apply ++ (cdr xs)))))))
            (symbol? string?)
            (partition
             (λ (f xs)
               (if (null? xs)
-                (cons '() '())
-                ((λ (r)
-                   (if (f (car xs))
-                     (cons (cons (car xs) (car r)) (cdr r))
-                     (cons (car r) (cons (car xs) (cdr r)))))
-                 (partition f (cdr xs))))))
+                  (cons '() '())
+                  ((λ (r)
+                     (if (f (car xs))
+                         (cons (cons (car xs) (car r)) (cdr r))
+                         (cons (car r) (cons (car xs) (cdr r)))))
+                   (partition f (cdr xs))))))
            (filter
             (λ (f xs)
               (if (null? xs)
-                '()
-                (if (f (car xs))
-                  (cons (car xs) (filter f (cdr xs)))
-                  (filter f (cdr xs))))))
+                  '()
+                  (if (f (car xs))
+                      (cons (car xs) (filter f (cdr xs)))
+                      (filter f (cdr xs))))))
            (foldl
             (λ (f x xs) (if (null? xs) x (foldl f (f (car xs) x) (cdr xs))))))
     (define-record-type promise (%delay x) promise? (x %force))
     (define-record-type ERROR (ERROR x) ERROR? (x ERROR-x))
     (+ 0 0))]
  )
-
 (load/test
- "js.cscm"
+ ["js.cscm"]
  [(js '(begin
          (define (displayln x)
            (: console log x))
          (define writeln displayln)
          (displayln 0))) |var displayln=(function(x){return console.log(x);});var writeln=displayln;displayln(0);|]
+ [(js '(begin
+         (define Map (newtype))
+         (define (Map? x) (is-a? x Map)))) |var Map=(function(){});var zMap_63CZ=(function(x){return (x instanceof Map);});|]
  )

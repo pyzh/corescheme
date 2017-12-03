@@ -17,5 +17,5 @@
     (define prelude
       '(
         (define Map (newtype))
-        (define (Map? x) (is-a? x Map))
-    prelude)
+        (define (Map? x) (is-a? x Map))))
+    prelude))
