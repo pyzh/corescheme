@@ -55,6 +55,10 @@
                     (λ (x)
                       (++ "var "(id (first xs))"="x N
                           (k undefined))))]))
+    (define (store! x f)
+      (let ([v (genstr!)])
+        (++ "var "v"="x"\n"
+            (f v))))
     (define (APPLY f xs k)
       (cond
         [(symbol? f)
@@ -140,6 +144,40 @@
            [(eq? f 'not)
             (EVAL (first xs) (λ (x)
                                (k (++ "(!"x")"))))]
+           [(eq? f 'vector-for)
+            (let ([x (car xs)] [b (cdr xs)])
+              (let ([i (id (first x))] [x (id (second x))] [xs (third x)])
+                (EVAL
+                 xs
+                 (λ (xs)
+                   (store!
+                    xs
+                    (λ (xs)
+                      (++ "for(var i_=0;i_<"xs".length;i_++){"
+                          "var "i"=i_"N
+                          "var "x"="xs"[i_]"N
+                          (BEGIN b ig)
+                          "}"
+                          (k undefined))))))))]
+           [(eq? f 'object-for)
+            (let ([x (car xs)] [b (cdr xs)])
+              (let ([i (id (first x))] [x (id (second x))] [o (third x)])
+                (EVAL
+                 o
+                 (λ (o)
+                   (store!
+                    o
+                    (λ (o)
+                      (++ "for(var "i" in "o"){"
+                          "var "x"="o"["i"]"N
+                          (BEGIN b ig)
+                          "}"
+                          (k undefined))))))))]
+           [(eq? f 'c-for)
+            (let ([x (car xs)] [b (cdr xs)])
+              (let ([init (first x)] [c (second x)] [i (third x)])
+                (++ "for("(EVAL init ig)(EVAL c ig)(EVAL i ig)"){"
+                    (BEGIN b ig))))]
            [else (EVAL f (λ (f)
                            (EVALxs xs (λ (xs)
                                         (k (++ f"("(add-between xs ",")")"))))))])]
