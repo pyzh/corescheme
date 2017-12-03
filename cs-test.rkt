@@ -132,21 +132,6 @@
  )
 (load/test
  ["js.cscm"]
- [(js '(begin
-         (struct map? (%Map x p c))
-         (define (map x) (%Map x (!) 0))
-         (define MapNothing (new (newtype)))
-         (define (MapNothing? x) (eq? x MapNothing))
-         (define (map-has? m k)
-           (not (or (MapNothing? (ref (/ m p) k))
-                    (undefined? (ref (/ m x) k)))))
-         (define (map-get m k t)
-           (define pv (ref (/ m p) k))
-           (cond/begin
-            [(MapNothing? pv) (return (t))]
-            [(undefined? pv)
-             (define v (ref (/ m x) k))
-             (return (if (undefined? v) (t) v))]
-            [else (return pv)]))))
-  0]
+ [(js '(struct a (b c)))
+  |var aT=function(){};var a=function(x){return x instanceof aT;};var b=function(c){var v_=new aT();v_.c=c;return v_;};|]
  )

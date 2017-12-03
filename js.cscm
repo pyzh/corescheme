@@ -326,6 +326,5 @@
             "var "pred"=function(x){return x instanceof "t N"}"N
             "var "constructor"="
             "function("(add-between fields ",")"){var v_=new "t"()"N (map (λ (f) (++ "v_."f"="f N)) fields) "return v_"N"}" N)))
-      
     (define (js x) (EVAL x ig))
     js))

@@ -23,6 +23,7 @@
          (define (MapNothing? x) (eq? x MapNothing))
          (define (map-has? m k)
            (not (or (MapNothing? (ref (/ m p) k))
+                    (undefined? (ref (/ m p) k))
                     (undefined? (ref (/ m x) k)))))
          (define (map-get m k t)
            (define pv (ref (/ m p) k))
