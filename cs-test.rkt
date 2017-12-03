@@ -62,12 +62,41 @@
        (cell-content a-cell)
        (cell? a-cell)))) '(0 1 #t)])
 (define-syntax-rule (test-macroexpand [c r] ...)
-   (check-equal?
-    (run-sexps (append (include/quote/list "macroexpand.cscm")
-           (list (quote (list (macroexpand (quote c)) ...)))))
-    (list (quote r) ...)))
+  (check-equal?
+   (run-sexps (append (include/quote/list "macroexpand.cscm")
+                      (list (quote (list (macroexpand (quote c)) ...)))))
+   (list (quote r) ...)))
 (test-macroexpand
  [(begin
     (defmacro (k a)
       `(+ ,a ,a))
-    (k 0)) (letrec () (+ 0 0))])
+    (k 0)) (letrec ((first car)
+                    (second (λ (x) (car (cdr x))))
+                    (third (λ (x) (car (cdr (cdr x)))))
+                    (fourth (λ (x) (car (cdr (cdr (cdr x))))))
+                    (add-between
+                     (λ (xs v)
+                       (cond
+                         ((null? xs) '())
+                         ((null? (cdr xs)) xs)
+                         (else (cons (car xs) (cons v (add-between (cdr xs) v)))))))
+                    (zero? (λ (x) (eq? x 0)))
+                    (abs (λ (x) (if (< x 0) (- 0 x) x)))
+                    (force
+                     (λ (x)
+                       ((λ (r)
+                          (if (pair? r)
+                              (car r)
+                              (car (atom-map! (λ (v) (list (r))) (%force x)))))
+                        (atom-get/set!
+                         (%force x)
+                         (λ (v)
+                           (cond
+                             ((pair? v) (cons v v))
+                             ((not v) (error '|force: halted| x))
+                             (else (cons v #f))))))))
+                    (promise-running? (λ (x) (not (atom-get (%force x)))))
+                    (promise-forced? (λ (x) (pair? (atom-get (%force x))))))
+             (define-record-type promise (%delay x) promise? (x %force))
+             (+ 0 0))]
+ )

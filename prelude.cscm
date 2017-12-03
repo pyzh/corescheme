@@ -35,6 +35,15 @@
     [else (list 'if (car xs)
                 (cons 'and (cdr xs))
                 #f)]))
+(defmacro (or . xs)
+  (cond
+    [(null? xs) #f]
+    [(null? (cdr xs)) (car xs)]
+    [else (let ([s (genstr)])
+            `(let ([,s ,(car xs)])
+               (if ,s
+                   ,s
+                   (or ,@(cdr xs)))))]))
 (defmacro (let ps . vs)
   (cons (cons 'λ (cons (map first ps) vs))
         (map second ps)))

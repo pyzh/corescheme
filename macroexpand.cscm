@@ -12,7 +12,9 @@
 
 ;;  You should have received a copy of the GNU Affero General Public License
 ;;  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-(define (macroexpand x) (EVAL (newmap) x))
+(define (macroexpand-xs xs)
+  (EVAL (newmap) (cons 'begin (append PRELUDE xs))))
+(define (macroexpand x) (macroexpand-xs (list x)))
 (define (ME ms x)
   (let ([b (and (pair? x) (map-ref ms (car x) #f))])
     (if b
@@ -37,9 +39,9 @@
 (define (COND ms xs)
   (let ([x (car xs)] [xs (cdr xs)])
     (if (eq? (car x) 'else)
-        (list (list 'else (BEGIN ms (cdr xs))))
+        (list (list 'else (BEGIN ms (cdr x))))
         (cons
-         (list (EVAL ms (car x)) (BEGIN ms (cdr xs)))
+         (list (EVAL ms (car x)) (BEGIN ms (cdr x)))
          (COND ms xs)))))
 (define (preBEGIN ms xs)
   (if (null? xs)
@@ -76,12 +78,14 @@
         (if (null? macs)
             (let ([defs-xs (partition define? xs)])
               (let ([defs (car defs-xs)] [xs (cdr defs-xs)])
-                (cons 'letrec
-                      (cons
-                       (map (λ (d)
-                              (list (second d) (EVAL ms (third d))))
-                            defs)
-                       (map (λ (x) (EVAL ms x)) xs)))))
+                (cond
+                  [(and (null? defs) (null? (cdr xs))) (EVAL ms (car xs))]
+                  [else (cons 'letrec
+                              (cons
+                               (map (λ (d)
+                                      (list (second d) (EVAL ms (third d))))
+                                    defs)
+                               (map (λ (x) (EVAL ms x)) xs)))])))
             (let ([xs (cdr macs-xs)]
                   [ms (map-append ms (map (λ (m) (cons (second m) (eval (third m))))
                                           macs))])
