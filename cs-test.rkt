@@ -18,6 +18,11 @@
 (define-syntax-rule (test [c r] ...)
   (begin
     (check-equal? (run-sexp (quote c)) (quote r)) ...))
+(define-syntax-rule (load/test f [c r] ...)
+  (check-equal?
+   (run-sexps (append (include/quote/list f)
+                      (list (quote (list c ...)))))
+   (list (quote r) ...)))
 (test
  [`(list ,(+ 1 2) 4) (list 3 4)]
  [(let ((name 'a)) `(list ,name ',name)) (list a (quote a))]
@@ -61,11 +66,6 @@
        x
        (cell-content a-cell)
        (cell? a-cell)))) (0 1 #t)])
-(define-syntax-rule (load/test f [c r] ...)
-  (check-equal?
-   (run-sexps (append (include/quote/list f)
-                      (list (quote (list c ...)))))
-   (list (quote r) ...)))
 (load/test
  "macroexpand.cscm"
  [(macroexpand '(begin
@@ -109,4 +109,13 @@
     (define-record-type promise (%delay x) promise? (x %force))
     (define-record-type ERROR (ERROR x) ERROR? (x ERROR-x))
     (+ 0 0))]
+ )
+
+(load/test
+ "js.cscm"
+ [(js '(begin
+         (define (displayln x)
+           (: console log x))
+         (define writeln displayln)
+         (displayln 0))) |var displayln=(function(x){return console.log(x);});var writeln=displayln;displayln(0);|]
  )
