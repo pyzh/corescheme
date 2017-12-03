@@ -55,6 +55,7 @@
      (match x
        [(list x ...) (map sexp-> x)]
        [(list-rest a ... d) `(,@(map sexp-> a) "." ,(sexp-> d))])]
+    [(? keyword? x) (string-append "#:" (keyword->string x))]
     [x x]))
 (define ->sexp
   (match-lambda

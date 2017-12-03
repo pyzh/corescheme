@@ -47,9 +47,17 @@
           (let ((k (kons 1 2)))
             (set-kar! k 3)
             (kar k)))) '(#t #f 1 2 3)])
-
 (test
  [(begin
     (define d (delay 0))
-    (define r (force d))
-    (list r (promise-forced? d))) '(0 #t)])
+    (list (force d) (promise-forced? d))) '(0 #t)])
+(test
+ [(begin
+    (struct cell ([content #:mutable]))
+    (define a-cell (cell 0))
+    (let ([x (cell-content a-cell)])
+      (set-cell-content! a-cell 1)
+      (list
+       x
+       (cell-content a-cell)
+       (cell? a-cell)))) '(0 1 #t)])
