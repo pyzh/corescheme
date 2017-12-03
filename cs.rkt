@@ -152,7 +152,7 @@
                    `((define (,(second f) x) (,ref x ,n))
                      (define (,(third f) x v) (,rset! x ,n v)))
                    (deffs (+ n 1) ref rset! fs))))))
-      (let ([s (genstr)] [make (genstr)] [ref (genstr)] [rset! (genstr)])
+      (let ([s (genstr!)] [make (genstr!)] [ref (genstr!)] [rset! (genstr!)])
         `(begin
            (define ,s (__MK_REC__ (quote ,name) ,(length fields)))
            (define ,make (first ,s))
@@ -220,7 +220,7 @@
    "string?" string?
    "string-append" string-append
    "str->strlist" (λ (s) (map string (string->list s)))
-   "genstr" genstr!
+   "genstr!" genstr!
    "id" id
 
    "number?" number?

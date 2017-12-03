@@ -97,7 +97,13 @@
                              (else (cons v #f))))))))
                     (promise-running? (λ (x) (not (atom-get (%force x)))))
                     (promise-forced? (λ (x) (pair? (atom-get (%force x)))))
-                    (error (λ (x) (raise (ERROR x)))))
+                    (error (λ (x) (raise (ERROR x))))
+                    (++
+                     (λ xs
+                       (cond
+                         ((null? xs) '||)
+                         ((list? (car xs)) (apply ++ (append (car xs) (cdr xs))))
+                         (else (string-append (car xs) (apply ++ (cdr xs))))))))
              (define-record-type promise (%delay x) promise? (x %force))
              (define-record-type ERROR (ERROR x) ERROR? (x ERROR-x))
              (+ 0 0))]

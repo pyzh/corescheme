@@ -39,7 +39,7 @@
   (cond
     [(null? xs) #f]
     [(null? (cdr xs)) (car xs)]
-    [else (let ([s (genstr)])
+    [else (let ([s (genstr!)])
             `(let ([,s ,(car xs)])
                (if ,s
                    ,s
