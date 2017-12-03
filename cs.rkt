@@ -13,7 +13,7 @@
 
 ;;  You should have received a copy of the GNU Affero General Public License
 ;;  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-(provide run-xs run run-sexps run-sexp sexp-> ->sexp)
+(provide include/quote/list run-xs run run-sexps run-sexp sexp-> ->sexp)
 (define-syntax-rule (include/quote/list f)
   (include/reader
    f
@@ -79,7 +79,7 @@
          (EVAL ms env x)
          (EVAL ms env y))]
     [`("quote" ,x) x]
-    [`(,(or "lambda" "λ") ,args ,@b) (λ xs (BEGIN ms (unify env args xs) b))]
+    [`("λ" ,args ,@b) (λ xs (BEGIN ms (unify env args xs) b))]
     [`("begin" ,@b) (BEGIN ms env b)]
     [`("cond" ,@b) (COND ms env b)]
     [(and x (or (? number?) (? boolean?))) x]
@@ -183,6 +183,8 @@
    "map" map
    "append" append
    "not" not
+   "partition" (λ (f xs) (let-values ([(t f) (partition f xs)]) (cons t f)))
+   "foldl" foldl
 
    "void" (void)
    "void?" void?

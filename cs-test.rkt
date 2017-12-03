@@ -61,3 +61,13 @@
        x
        (cell-content a-cell)
        (cell? a-cell)))) '(0 1 #t)])
+(define-syntax-rule (test-macroexpand [c r] ...)
+   (check-equal?
+    (run-sexps (append (include/quote/list "macroexpand.cscm")
+           (list (quote (list (macroexpand (quote c)) ...)))))
+    (list (quote r) ...)))
+(test-macroexpand
+ [(begin
+    (defmacro (k a)
+      `(+ ,a ,a))
+    (k 0)) (letrec () (+ 0 0))])
