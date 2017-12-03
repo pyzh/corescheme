@@ -56,3 +56,22 @@
            [else (list 'cons (Q n f) (Q n (cdr x)))]))]
       [else (list 'quote x)]))
   (Q 0 x))
+(define-record-type promise
+  (%delay x)
+  promise?
+  (x %force))
+(defmacro (delay x)
+  `(%delay (atom! (λ () ,x))))
+(define (force x)
+  (let ([r (atom-get/set!
+            (%force x)
+            (λ (v)
+              (cond
+                [(pair? v) (cons v v)]
+                [(not v) (error "force: halted" x)]
+                [else (cons v #f)])))])
+    (if (pair? r)
+        (car r)
+        (car (atom-map! (λ (v) (list (r))) (%force x))))))
+(define (promise-running? x) (not (atom-get (%force x))))
+(define (promise-forced? x) (pair? (atom-get (%force x))))

@@ -108,23 +108,27 @@
   (foldl (λ (p h) (hash-set h (car p) (cdr p))) hash ps))
 (define (BEGIN ms env xs)
   (let ([xs (preBEGIN ms xs)])
-    (let-values ([(defs xs) (partition (match-lambda [`("define" ,s ,@v) #t] [_ #f]) xs)])
-      (let-values
-          ([(defs) (map DEFINE defs)]
-           [(macs xs) (partition (match-lambda [`("defmacro" ,s ,@v) #t] [_ #f]) xs)])
-        (let ([macs (map defmacro macs)])
-          (letrec
-              ([ndefs
-                (map (λ (x)
-                       (cons (car x) (delay (EVAL newms newenv (cdr x))))) defs)]
-               [newenv (hash-append env ndefs)]
-               [nmacs
-                (map (λ (x)
-                       (cons (car x) (delay (EVAL newms newenv (cdr x))))) macs)]
-               [newms (hash-append ms nmacs)])
-            (if (null? nmacs)
-                (last (map (λ (x) (EVAL newms newenv x)) xs))
-                (BEGIN newms newenv xs))))))))
+    (let-values ([(macs xs) (partition (match-lambda [`("defmacro" ,s ,@v) #t] [_ #f]) xs)])
+      (let-values ([(defs xs) (partition (match-lambda [`("define" ,s ,@v) #t] [_ #f]) xs)])
+        (let ([defs (map DEFINE defs)] [macs (map defmacro macs)])
+          (if (null? macs)
+              (letrec
+                  ([ndefs
+                    (map (λ (x)
+                           (cons (car x) (delay (EVAL ms newenv (cdr x))))) defs)]
+                   [newenv (hash-append env ndefs)])
+                (last (map (λ (x) (EVAL ms newenv x)) xs)))
+              (let ([xs (append (map (λ (x) `("define" ,(car x) ,(cdr x))) defs) xs)])
+                (letrec
+                    ([ndefs
+                      (map (λ (x)
+                             (cons (car x) (delay (EVAL newms newenv (cdr x))))) defs)]
+                     [newenv (hash-append env ndefs)]
+                     [nmacs
+                      (map (λ (x)
+                             (cons (car x) (delay (EVAL newms newenv (cdr x))))) macs)]
+                     [newms (hash-append ms nmacs)])
+                  (BEGIN newms newenv xs)))))))))
 (define (COND ms env xs)
   (match (car xs)
     [`["else" ,@x] (match (cdr xs) ['() (BEGIN ms env x)])]
@@ -156,7 +160,7 @@
            (define ,constructor (,make ,@(map first fields)))
            ,@(deffs 0 ref rset! fields)
            )))))
-(define prelude (cons "begin" (sexp-> (append (include/quote/list "prelude.cscm") csprelude))))
+(define prelude (sexp-> (cons 'begin (append csprelude (include/quote/list "prelude.cscm")))))
 (struct atom ([v #:mutable]))
 (define genv
   (hash
@@ -176,6 +180,7 @@
    "length" (λ (x) (exact->inexact (length x)))
    "map" map
    "append" append
+   "not" not
 
    "void" (void)
    "void?" void?
@@ -225,6 +230,9 @@
    "atom-map!" (λ (f a) (let ([x (f (atom-v a))])
                           (set-atom-v! a x)
                           x))
+   "atom-get/set!" (λ (a f) (let ([x (f (atom-v a))])
+                              (set-atom-v! a (cdr x))
+                              (car x)))
    "atom?" atom?
 
    "__MK_REC__" (λ (name c)

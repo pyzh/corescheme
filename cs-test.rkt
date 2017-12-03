@@ -47,3 +47,9 @@
           (let ((k (kons 1 2)))
             (set-kar! k 3)
             (kar k)))) '(#t #f 1 2 3)])
+
+(test
+ [(begin
+    (define d (delay 0))
+    (define r (force d))
+    (list r (promise-forced? d))) '(0 #t)])
