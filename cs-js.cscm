@@ -15,7 +15,40 @@
 (define cscm->js
   (begin
     (define prelude
-      '(
+      '(begin
         (define Map (newtype))
-        (define (Map? x) (is-a? x Map))))
+        (define MapMax 16)
+        (define (Map? x) (is-a? x Map))
+        (define (newMap x)
+          (define r (new Map))
+          (set! (/ r x) x)
+          (set! (/ r p) (!))
+          (set! (/ r c) 0)
+          r)
+        (define MapNothing (new (newtype)))
+        (define (MapNothing? x) (eq? x MapNothing))
+        (define (map-has? m k)
+          (not (or (MapNothing? (ref (/ m p) k))
+                   (undefined? (ref (/ m x) k)))))
+        (define (map-get m k t)
+          (define pv (ref (/ m p) k))
+          (cond/begin
+            [(MapNothing? pv) (return (t))]
+            [(undefined? pv)
+             (define v (ref (/ m x) k))
+             (return (if (undefined? v) (t) v))]
+            [else (return pv)]))
+        (define (map-set m k v)
+          (define c)
+          (if/begin (undefined? (ref (/ m p) k))
+                    [(set! c (/ m (+ c 1)))]
+                    [(set! c (/ m c))])
+          (if/begin (> c MapMax)
+                    [(define r (unMap m))
+                    (set! (ref r k) v)
+                    (return (newMap r))]
+                    [(define p (object-clone (/ m p)))
+                     (set! (ref p k) v)
+                     (return 
+        ))
     prelude))

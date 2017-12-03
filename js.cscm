@@ -23,7 +23,10 @@
     (define (EVAL x f)
       (cond
         [(pair? x) (APPLY (car x) (cdr x) f)]
-        [(symbol? x) (f (id x))]
+        [(symbol? x)
+         (f (if (eq? x 'undefined)
+                "undefined"
+                (id x)))]
         [(number? x) (f (number->string x))]
         [(eq? x #t) (f "true")]
         [(eq? x #f) (f "false")]
@@ -55,9 +58,14 @@
                     (λ (x)
                       (++ "var "(id (first xs))"="x N
                           (k undefined))))]))
+    (define genvar! genstr!)
     (define (store! x f)
-      (let ([v (genstr!)])
-        (++ "var "v"="x"\n"
+      (let ([v (genvar!)])
+        (++ "var "v"="x N
+            (f v))))
+    (define (with-genvar! f)
+      (let ([v (genvar!)])
+        (++ "var " v N
             (f v))))
     (define (APPLY f xs k)
       (cond
@@ -133,7 +141,7 @@
            [(eq? f '/) (+-*/ "/" xs k)]
            [(eq? f '<) (<>= "<" xs k)]
            [(eq? f '>) (<>= ">" xs k)]
-           [(eq? f '=) (<>= "===" xs k)]
+           [(or (eq? f 'eq?) (eq? f '=)) (<>= "===" xs k)]
            [(eq? f 'js-eq?) (<>= "==" xs k)]
            [(eq? f '!=) (<>= "!==" xs k)]
            [(eq? f 'js-not-eq?) (<>= "!=" xs k)]
@@ -201,17 +209,17 @@
            [(eq? f 'string?) (TYPE? "string" (first xs) k)]
            [(eq? f 'object/vector?) (TYPE? "object" (first xs) k)]
            [(eq? f 'vector?) (EVAL (first xs) (λ (x)
-                                              (k (++ "("x" instanceof Array)"))))]
+                                                (k (++ "("x" instanceof Array)"))))]
            [(or (eq? f '->string) (eq? f 'number->string))
             (EVAL (first xs) (λ (x)
-                            (k (++ "String("x")"))))]
+                               (k (++ "String("x")"))))]
            [(or (eq? f '->number) (eq? f 'string->number))
             (EVAL (first xs) (λ (x)
-                            (k (++ "Number("x")"))))]
+                               (k (++ "Number("x")"))))]
            [(eq? f 'is-a?)
             (EVAL (first xs) (λ (x)
-                              (EVAL (second xs) (λ (c)
-                                                 (k (++ "("x" instanceof "c")"))))))]
+                               (EVAL (second xs) (λ (c)
+                                                   (k (++ "("x" instanceof "c")"))))))]
            [(eq? f 'typeof)
             (EVAL (first xs) (λ (x) (k (++ "(typeof "x")"))))]
            [(eq? f 'new)
@@ -222,6 +230,34 @@
                               (λ (xs)
                                 (k (++ "(new "x"("(add-between xs ",")"))")))))))]
            [(eq? f 'newtype) (k "(function(){})")]
+           [(eq? f 'undefined?) (EVAL (first xs)
+                                      (λ (x)
+                                        (k (++ "("x"===null)"))))]
+           [(eq? f 'raise) (EVAL (first xs)
+                                 (λ (x)
+                                   (++ "throw "x N)))]
+           [(eq? f 'with-exception-handler)
+            (EVAL
+             (first xs)
+             (λ (handler)
+               (EVAL
+                (second xs)
+                (λ (thunk)
+                  (let ([e (genvar!)])
+                    (with-genvar!
+                        (λ (x)
+                          (++ "try{"
+                              x"="thunk"()"
+                              "}catch("e"){"
+                              x"="handler"("e")}"
+                              (k x)))))))))]
+           [(eq? f 'assert)
+            (EVAL
+             (first xs)
+             (λ (b)
+               (++ "if("b"){throw 'assertion failed!'}"
+                   (k undefined))))]
+           [(eq? f 'cond/begin) (COND/BEGIN xs k)]
            [else (EVAL f (λ (f)
                            (EVALxs xs (λ (xs)
                                         (k (++ f"("(add-between xs ",")")"))))))])]
@@ -255,5 +291,30 @@
               (EVAL (second xs)
                     (λ (y)
                       (k (++ "("x f y")")))))))
+    (define (COND/BEGIN xs k)
+      (if (null? xs)
+          (k undefined)
+          (let ([x (car xs)] [xs (cdr xs)])
+            (let ([a (car x)] [d (cdr x)])
+              (if (eq? a 'else)
+                  (++ (BEGIN d (λ (x) (k undefined))))
+                  (EVAL a (λ (a)
+                            (++ "if("a"){"
+                                (BEGIN d ig)
+                                "}" (%COND/BEGIN xs k)))))))))
+    (define (%COND/BEGIN xs k)
+      (if (null? xs)
+          (k undefined)
+          (let ([x (car xs)] [xs (cdr xs)])
+            (let ([a (car x)] [d (cdr x)])
+              (if (eq? a 'else)
+                  (++ "else{"
+                      (BEGIN d ig)
+                      "}"
+                      (k undefined))
+                  (EVAL a (λ (a)
+                            (++ "else if("a"){"
+                                (BEGIN d ig)
+                                "}" (%COND/BEGIN xs k)))))))))
     (define (js x) (EVAL x ig))
     js))
