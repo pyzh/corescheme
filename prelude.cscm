@@ -105,3 +105,4 @@
     [(null? xs) ""]
     [(list? (car xs)) (apply ++ (append (car xs) (cdr xs)))]
     [else (string-append (car xs) (apply ++ (cdr xs)))]))
+(define symbol? string?)

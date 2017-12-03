@@ -105,7 +105,8 @@
               (cond
                 ((null? xs) '||)
                 ((list? (car xs)) (apply ++ (append (car xs) (cdr xs))))
-                (else (string-append (car xs) (apply ++ (cdr xs))))))))
+                (else (string-append (car xs) (apply ++ (cdr xs)))))))
+           (symbol? string?))
     (define-record-type promise (%delay x) promise? (x %force))
     (define-record-type ERROR (ERROR x) ERROR? (x ERROR-x))
     (+ 0 0))]
