@@ -162,6 +162,24 @@
            (define ,constructor (,make ,@(map first fields)))
            ,@(deffs 0 ref rset! fields)
            )))))
+(define chars-num (set #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9 #\0))
+(define chars-abc
+  (set #\q #\w #\e #\r #\t #\y #\u #\i #\o #\p #\a #\s #\d #\f #\g #\h #\j #\k #\l #\z #\x #\c #\v #\b #\n #\m
+       #\Q #\W #\E #\R #\T #\Y #\U #\I #\O #\P #\A #\S #\D #\F #\G #\H #\J #\K #\L #\Z #\X #\C #\V #\B #\N #\M))
+(define chars (set-union chars-num chars-abc))
+(define chars_ (set-add chars #\_))
+(define (id str)
+  (let ([xs (string->list str)])
+    (if (and (andmap (λ (c) (set-member? chars_ c)) xs) (set-member? chars (car xs)))
+        str
+        (apply string-append
+               (append
+                (list "z")
+                (map (λ (c)
+                       (if (set-member? chars c)
+                           (string c)
+                           (string-append "_" (number->string (char->integer c)) "C"))) xs)
+                (list "Z"))))))
 (struct atom ([v #:mutable]))
 (define gms (hash))
 (define genv
@@ -193,20 +211,14 @@
    "string-append" string-append
    "str->strlist" (λ (s) (map string (string->list s)))
    "genstr" (λ () (symbol->string (gensym)))
-   "->azAZ09_" (λ (s)
-                 (apply string-append
-                        (map
-                         (λ (x) (if (or (char-alphabetic? x) (char-numeric? x))
-                                    (string x)
-                                    (string-append "_" (number->string (char->integer x)))))
-                         (string->list s))))
+   "->id" id
 
    "number?" number?
    "+" +
    "-" -
    "*" *
    "/" /
-   "number->string" number->string
+   "number->string" (λ (x) (number->string (inexact->exact x)))
    "string->number" string->number
    "<" <
    ">" >
