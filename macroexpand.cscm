@@ -12,81 +12,84 @@
 
 ;;  You should have received a copy of the GNU Affero General Public License
 ;;  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-(define (macroexpand-xs xs)
-  (EVAL (newmap) (cons 'begin (append PRELUDE xs))))
+(define macroexpand-xs
+  (begin
+    (define (ME ms x)
+      (let ([b (and (pair? x) (map-ref ms (car x) #f))])
+        (if b
+            (ME ms (apply b (cdr x)))
+            x)))
+    (define (EVAL ms x)
+      (let ([x (ME ms x)])
+        (cond
+          [(pair? x) (APPLY ms (car x) (cdr x))]
+          [else x])))
+    (define (APPLY ms f xs)
+      (cond
+        [(eq? f 'quote) `(quote ,(first xs))]
+        [(eq? f 'if) `(if ,(EVAL ms (first xs))
+                          ,(EVAL ms (second xs))
+                          ,(EVAL ms (third xs)))]
+        [(eq? f 'λ) `(λ ,(first xs)
+                       ,(BEGIN ms (cdr xs)))]
+        [(eq? f 'begin) (BEGIN ms xs)]
+        [(eq? f 'cond) (cons 'cond (COND ms xs))]
+        [else (map (λ (x) (EVAL ms x)) (cons f xs))]))
+    (define (COND ms xs)
+      (let ([x (car xs)] [xs (cdr xs)])
+        (if (eq? (car x) 'else)
+            (list (list 'else (BEGIN ms (cdr x))))
+            (cons
+             (list (EVAL ms (car x)) (BEGIN ms (cdr x)))
+             (COND ms xs)))))
+    (define (preBEGIN ms xs)
+      (if (null? xs)
+          '()
+          (let ([x (ME ms (car xs))] [xs (cdr xs)])
+            (if (pair? x)
+                (let ([a (car x)])
+                  (cond
+                    [(eq? a 'begin) (preBEGIN ms (append (cdr x) xs))]
+                    [(eq? a 'define) (cons (DEFINE x) (preBEGIN ms xs))]
+                    [(eq? a 'defmacro) (cons (DEFMACRO x) (preBEGIN ms xs))]
+                    [else (cons x (preBEGIN ms xs))]))
+                (cons x (preBEGIN ms xs))))))
+    (define (DEFINE x)
+      (let ([f (second x)])
+        (if (pair? f)
+            (DEFINE (list 'define (car f)
+                          (cons 'λ (cons (cdr f) (cdr (cdr x))))))
+            x)))
+    (define (DEFMACRO x)
+      (let ([f (second x)])
+        (if (pair? f)
+            (list 'defmacro (car f)
+                  (cons 'λ (cons (cdr f) (cdr (cdr x)))))
+            x)))
+    (define (define? x) (and (pair? x) (eq? (car x) 'define)))
+    (define (defmacro? x) (and (pair? x) (eq? (car x) 'defmacro)))
+    (define (map-append map ps)
+      (foldl (λ (p m) (map-set m (car p) (cdr p))) map ps))
+    (define (BEGIN ms xs)
+      (let ([xs (preBEGIN ms xs)])
+        (let ([macs-xs (partition defmacro? xs)])
+          (let ([macs (car macs-xs)])
+            (if (null? macs)
+                (let ([defs-xs (partition define? xs)])
+                  (let ([defs (car defs-xs)] [xs (cdr defs-xs)])
+                    (cond
+                      [(and (null? defs) (null? (cdr xs))) (EVAL ms (car xs))]
+                      [else (cons 'letrec
+                                  (cons
+                                   (map (λ (d)
+                                          (list (second d) (EVAL ms (third d))))
+                                        defs)
+                                   (map (λ (x) (EVAL ms x)) xs)))])))
+                (let ([xs (cdr macs-xs)]
+                      [ms (map-append ms (map (λ (m) (cons (second m) (eval (third m))))
+                                              macs))])
+                  (BEGIN ms xs)))))))
+    (define (macroexpand-xs xs)
+      (EVAL (newmap) (cons 'begin (append PRELUDE xs))))
+    macroexpand-xs))
 (define (macroexpand x) (macroexpand-xs (list x)))
-(define (ME ms x)
-  (let ([b (and (pair? x) (map-ref ms (car x) #f))])
-    (if b
-        (ME ms (apply b (cdr x)))
-        x)))
-(define (EVAL ms x)
-  (let ([x (ME ms x)])
-    (cond
-      [(pair? x) (APPLY ms (car x) (cdr x))]
-      [else x])))
-(define (APPLY ms f xs)
-  (cond
-    [(eq? f 'quote) `(quote ,(first xs))]
-    [(eq? f 'if) `(if ,(EVAL ms (first xs))
-                      ,(EVAL ms (second xs))
-                      ,(EVAL ms (third xs)))]
-    [(eq? f 'λ) `(λ ,(first xs)
-                   ,(BEGIN ms (cdr xs)))]
-    [(eq? f 'begin) (BEGIN ms xs)]
-    [(eq? f 'cond) (cons 'cond (COND ms xs))]
-    [else (map (λ (x) (EVAL ms x)) (cons f xs))]))
-(define (COND ms xs)
-  (let ([x (car xs)] [xs (cdr xs)])
-    (if (eq? (car x) 'else)
-        (list (list 'else (BEGIN ms (cdr x))))
-        (cons
-         (list (EVAL ms (car x)) (BEGIN ms (cdr x)))
-         (COND ms xs)))))
-(define (preBEGIN ms xs)
-  (if (null? xs)
-      '()
-      (let ([x (ME ms (car xs))] [xs (cdr xs)])
-        (if (pair? x)
-            (let ([a (car x)])
-              (cond
-                [(eq? a 'begin) (preBEGIN ms (append (cdr x) xs))]
-                [(eq? a 'define) (cons (DEFINE x) (preBEGIN ms xs))]
-                [(eq? a 'defmacro) (cons (DEFMACRO x) (preBEGIN ms xs))]
-                [else (cons x (preBEGIN ms xs))]))
-            (cons x (preBEGIN ms xs))))))
-(define (DEFINE x)
-  (let ([f (second x)])
-    (if (pair? f)
-        (DEFINE (list 'define (car f)
-                      (cons 'λ (cons (cdr f) (cdr (cdr x))))))
-        x)))
-(define (DEFMACRO x)
-  (let ([f (second x)])
-    (if (pair? f)
-        (list 'defmacro (car f)
-              (cons 'λ (cons (cdr f) (cdr (cdr x)))))
-        x)))
-(define (define? x) (and (pair? x) (eq? (car x) 'define)))
-(define (defmacro? x) (and (pair? x) (eq? (car x) 'defmacro)))
-(define (map-append map ps)
-  (foldl (λ (p m) (map-set m (car p) (cdr p))) map ps))
-(define (BEGIN ms xs)
-  (let ([xs (preBEGIN ms xs)])
-    (let ([macs-xs (partition defmacro? xs)])
-      (let ([macs (car macs-xs)])
-        (if (null? macs)
-            (let ([defs-xs (partition define? xs)])
-              (let ([defs (car defs-xs)] [xs (cdr defs-xs)])
-                (cond
-                  [(and (null? defs) (null? (cdr xs))) (EVAL ms (car xs))]
-                  [else (cons 'letrec
-                              (cons
-                               (map (λ (d)
-                                      (list (second d) (EVAL ms (third d))))
-                                    defs)
-                               (map (λ (x) (EVAL ms x)) xs)))])))
-            (let ([xs (cdr macs-xs)]
-                  [ms (map-append ms (map (λ (m) (cons (second m) (eval (third m))))
-                                          macs))])
-              (BEGIN ms xs)))))))
