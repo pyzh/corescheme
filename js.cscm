@@ -208,7 +208,7 @@
            [(or (eq? f '->number) (eq? f 'string->number))
             (EVAL (first x) (λ (x)
                             (k (++ "Number("x")"))))]
-           [(eq? f 'instanceof)
+           [(eq? f 'is-a?)
             (EVAL (first x) (λ (x)
                               (EVAL (second x) (λ (c)
                                                  (k (++ "("x" instanceof "c")"))))))]
@@ -216,11 +216,12 @@
             (EVAL (first x) (λ (x) (k (++ "(typeof "x")"))))]
            [(eq? f 'new)
             (let ([x (car xs)] [xs (cdr xs)])
-              (EVAL (first x)
+              (EVAL x
                     (λ (x)
                       (EVALxs xs
                               (λ (xs)
                                 (k (++ "(new "x"("(add-between xs ",")"))")))))))]
+           [(eq? f 'newtype) (k "(function(){})")]
            [else (EVAL f (λ (f)
                            (EVALxs xs (λ (xs)
                                         (k (++ f"("(add-between xs ",")")"))))))])]
