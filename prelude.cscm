@@ -28,6 +28,7 @@
       (- 0 x)
       x))
 
+(define (not x) (if x #f #t))
 (defmacro (and . xs)
   (cond
     [(null? xs) #t]
@@ -113,3 +114,13 @@
         (if (f (car xs))
             (cons (cons (car xs) (car r)) (cdr r))
             (cons (car r) (cons (car xs) (cdr r)))))))
+(define (filter f xs)
+  (if (null? xs)
+      '()
+      (if (f (car xs))
+          (cons (car xs) (filter f (cdr xs)))
+          (filter f (cdr xs)))))
+(define (foldl f x xs)
+  (if (null? xs)
+      x
+      (foldl f (f (car xs) x) (cdr xs))))

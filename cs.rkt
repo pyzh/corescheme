@@ -210,8 +210,6 @@
    "length" (λ (x) (exact->inexact (length x)))
    "map" map
    "append" append
-   "not" not
-   "foldl" foldl
 
    "void" (void)
    "void?" void?
