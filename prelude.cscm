@@ -75,3 +75,5 @@
         (car (atom-map! (λ (v) (list (r))) (%force x))))))
 (define (promise-running? x) (not (atom-get (%force x))))
 (define (promise-forced? x) (pair? (atom-get (%force x))))
+
+__PRELUDE_END__

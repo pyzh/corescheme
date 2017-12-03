@@ -28,7 +28,7 @@
            eof
            (datum->syntax #f (list 'quote x)))))))
 
-(define (run-xs xs) (unQUOTE (EVAL (hash) genv (QUOTE (append prelude xs)))))
+(define (run-xs xs) (unQUOTE (EVAL gms genv (cons "begin" (QUOTE xs)))))
 (define (run x) (run-xs (list x)))
 (define (run-sexps xs) (->sexp (run-xs (map sexp-> xs))))
 (define (run-sexp x) (run-sexps (list x)))
@@ -72,6 +72,7 @@
         x)))
 (define (EVAL ms env x)
   (match (macroexpand ms x)
+    ["__PRELUDE_END__" (set! gms ms) (set! genv env)]
     [`("if" ,b ,x ,y)
      (if (EVAL ms env b)
          (EVAL ms env x)
@@ -160,13 +161,13 @@
            (define ,constructor (,make ,@(map first fields)))
            ,@(deffs 0 ref rset! fields)
            )))))
-(define prelude (sexp-> (cons 'begin (append csprelude (include/quote/list "prelude.cscm")))))
 (struct atom ([v #:mutable]))
+(define gms (hash))
 (define genv
   (hash
    "eq?" equal?
    "equal?" equal?
-   "eval" (λ (x) (EVAL (hash) genv x))
+   "eval" (λ (x) (EVAL gms genv x))
    "apply" apply
    "procedure?" procedure?
 
@@ -243,3 +244,4 @@
                           (λ (x k) (ref x (inexact->exact k)))
                           (λ (x k v) (rset! x (inexact->exact k) v)))))
    ))
+(run-sexps (append csprelude (include/quote/list "prelude.cscm")))
