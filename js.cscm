@@ -100,6 +100,23 @@
                     (EVAL (second xs)
                           (λ (xs)
                             (k (++ f"(..."xs")"))))))]
+           [(eq? f 'if)
+            (EVAL (first xs)
+                  (λ (b)
+                    (EVAL (second xs)
+                          (λ (x)
+                            (EVAL (third xs)
+                                  (λ (y)
+                                    (k (++ "("b"?"x":"y")"))))))))]
+           [(eq? f 'if/begin)
+            (EVAL (first xs)
+                  (λ (b)
+                    (++ "if("b"){"
+                        (BEGIN (second xs) ig)
+                        "}else{"
+                        (BEGIN (thirs xs) ig)
+                        "}"
+                        (k undefined))))]
            [else (EVAL f (λ (f)
                            (EVALxs xs (λ (xs)
                                         (k (++ f"("(add-between xs ",")")"))))))])]))
