@@ -96,7 +96,9 @@
                              ((not v) (error '|force: halted| x))
                              (else (cons v #f))))))))
                     (promise-running? (λ (x) (not (atom-get (%force x)))))
-                    (promise-forced? (λ (x) (pair? (atom-get (%force x))))))
+                    (promise-forced? (λ (x) (pair? (atom-get (%force x)))))
+                    (error (λ (x) (raise (ERROR x)))))
              (define-record-type promise (%delay x) promise? (x %force))
+             (define-record-type ERROR (ERROR x) ERROR? (x ERROR-x))
              (+ 0 0))]
  )

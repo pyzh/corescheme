@@ -180,10 +180,20 @@
                            (string c)
                            (string-append "_" (number->string (char->integer c)) "C"))) xs)
                 (list "Z"))))))
+(define (with-exception-handler handler thunk)
+  (with-handlers ([(λ (x) #t) handler]) (thunk)))
+(define genstr!
+  (let ([c 0])
+    (λ ()
+      (set! c (+ c 1))
+      (string-append "g" (number->string c)))))
 (struct atom ([v #:mutable]))
 (define gms (hash))
 (define genv
   (hash
+   "raise" raise
+   "with-exception-handler" with-exception-handler
+
    "eq?" equal?
    "equal?" equal?
    "eval" (λ (x) (EVAL gms genv x))
@@ -210,15 +220,17 @@
    "string?" string?
    "string-append" string-append
    "str->strlist" (λ (s) (map string (string->list s)))
-   "genstr" (λ () (symbol->string (gensym)))
-   "->id" id
+   "genstr" genstr!
+   "id" id
 
    "number?" number?
    "+" +
    "-" -
    "*" *
    "/" /
-   "number->string" (λ (x) (number->string (inexact->exact x)))
+   "number->string" (λ (x) (if (integer? x)
+                               (number->string (inexact->exact x))
+                               (number->string x)))
    "string->number" string->number
    "<" <
    ">" >

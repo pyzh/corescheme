@@ -14,3 +14,58 @@
 ;;  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 (define js
   (begin
+    (define N ";")
+    (define undefined "undefined")
+    (define (EVAL x f)
+      (cond
+        [(pair? x) (APPLY (car x) (cdr x) f)]
+        [(string? x) (f (->id x))]
+        [(number? x) (f (number->string x))]
+        [(eq? x #t) (f "true")]
+        [(eq? x #f) (f "false")]
+        [else (error "js: undefined" x f)]))
+    (define (APPLY f xs k)
+      (cond
+        [(string? f)
+         (cond
+          [(eq? f 'define)
+           (if (null? (cdr xs))
+               (++ "var "(id (first xs))N
+                   (k undefined))
+               (EVAL (second xs)
+                     (λ (x)
+                       (++ "var "(id (first xs))N
+                           (k undefined)))))]
+          [(eq? f 'set!)
+           (EVAL (first xs)
+                 (λ (x)
+                   (EVAL (second xs)
+                         (λ (v)
+                           (++ x"="v N
+                               (k undefined))))))]
+          [(eq? f 'λ) (LAMBDA xs k)]
+          [(eq? f 'return)
+           (EVAL (first xs)
+                 (λ (x)
+                   (++ "return "x N)))]
+          [(eq? f '!) (! xs k)]
+          [(eq? f 'ref)
+           (EVAL (first xs)
+                 (λ (o)
+                   (EVAL (second xs)
+                         (λ (key)
+                           (k (++ o"["key"]"))))))]
+          [(eq? f '@)
+           (EVAL (first xs)
+                 (λ (o)
+                   (k (++ o"."(id (second xs))))))]
+          [(eq? f ':)
+           (EVAL (car xs)
+                 (λ (o)
+                   (let ([xs (cdr xs)])
+                     (EVALxs (cdr xs)
+                             (λ (d)
+                               (k (++ o"."(id (car xs))"("(add-between d ",")")")))))))]
+          [else (EVAL f (λ (f)
+                          (EVALxs xs (λ (xs)
+                                       (k (++ f"("(add-between xs ",")")"))))))])]))

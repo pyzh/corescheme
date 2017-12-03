@@ -98,3 +98,10 @@
                     `(,f ,ff
                          ,(string-append "set-" (string-append ff "!")))))
                   `(,f ,(string-append name (string-append "-" f))))) fs)))
+(struct ERROR (x))
+(define (error x) (raise (ERROR x)))
+(define (++ . xs)
+  (cond
+    [(null? xs) ""]
+    [(list? (car xs)) (apply ++ (append (car xs) (cdr xs)))]
+    [else (string-append (car xs) (apply ++ (cdr xs)))]))
