@@ -214,6 +214,13 @@
                                                  (k (++ "("x" instanceof "c")"))))))]
            [(eq? f 'typeof)
             (EVAL (first x) (λ (x) (k (++ "(typeof "x")"))))]
+           [(eq? f 'new)
+            (let ([x (car xs)] [xs (cdr xs)])
+              (EVAL (first x)
+                    (λ (x)
+                      (EVALxs xs
+                              (λ (xs)
+                                (k (++ "(new "x"("(add-between xs ",")"))")))))))]
            [else (EVAL f (λ (f)
                            (EVALxs xs (λ (xs)
                                         (k (++ f"("(add-between xs ",")")"))))))])]
