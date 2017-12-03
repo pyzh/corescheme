@@ -211,7 +211,6 @@
    "map" map
    "append" append
    "not" not
-   "partition" (λ (f xs) (let-values ([(t f) (partition f xs)]) (cons t f)))
    "foldl" foldl
 
    "void" (void)

@@ -106,7 +106,16 @@
                 ((null? xs) '||)
                 ((list? (car xs)) (apply ++ (append (car xs) (cdr xs))))
                 (else (string-append (car xs) (apply ++ (cdr xs)))))))
-           (symbol? string?))
+           (symbol? string?)
+           (partition
+            (λ (f xs)
+              (if (null? xs)
+                  (cons '() '())
+                  ((λ (r)
+                     (if (f (car xs))
+                         (cons (cons (car xs) (car r)) (cdr r))
+                         (cons (car r) (cons (car xs) (cdr r)))))
+                   (partition f (cdr xs)))))))
     (define-record-type promise (%delay x) promise? (x %force))
     (define-record-type ERROR (ERROR x) ERROR? (x ERROR-x))
     (+ 0 0))]

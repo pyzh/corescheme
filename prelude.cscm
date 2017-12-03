@@ -95,8 +95,8 @@
               (if (pair? f) ; #:mutable
                   (let ([f (car f)])
                     (let ([ff (string-append name (string-append "-" f))])
-                    `(,f ,ff
-                         ,(string-append "set-" (string-append ff "!")))))
+                      `(,f ,ff
+                           ,(string-append "set-" (string-append ff "!")))))
                   `(,f ,(string-append name (string-append "-" f))))) fs)))
 (struct ERROR (x))
 (define (error x) (raise (ERROR x)))
@@ -106,3 +106,10 @@
     [(list? (car xs)) (apply ++ (append (car xs) (cdr xs)))]
     [else (string-append (car xs) (apply ++ (cdr xs)))]))
 (define symbol? string?)
+(define (partition f xs)
+  (if (null? xs)
+      (cons '() '())
+      (let ([r (partition f (cdr xs))])
+        (if (f (car xs))
+            (cons (cons (car xs) (car r)) (cdr r))
+            (cons (car r) (cons (car xs) (cdr r)))))))
