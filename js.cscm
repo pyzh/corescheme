@@ -16,6 +16,10 @@
   (begin
     (define N ";")
     (define undefined "undefined")
+    (define (ig x)
+      (if (eq? x undefined)
+          ""
+          (++ x N)))
     (define (EVAL x f)
       (cond
         [(pair? x) (APPLY (car x) (cdr x) f)]
@@ -24,48 +28,92 @@
         [(eq? x #t) (f "true")]
         [(eq? x #f) (f "false")]
         [else (error "js: undefined" x f)]))
+    (define (EVALxs xs k)
+      (if (null? xs)
+          (k '())
+          (EVAL (car xs)
+                (λ (x)
+                  (EVALxs (cdr xs)
+                          (λ (d)
+                            (k (cons x d))))))))
+    (define (! xs k)
+      (if (null? xs)
+          (k '())
+          (let ([x (car xs)] [xs (cdr xs)])
+            (EVAL (second x)
+                  (λ (v)
+                    (! xs
+                       (λ (xs)
+                         (k (cons (cons (id (first x)) v) xs)))))))))
     (define (APPLY f xs k)
       (cond
         [(string? f)
          (cond
-          [(eq? f 'define)
-           (if (null? (cdr xs))
-               (++ "var "(id (first xs))N
-                   (k undefined))
-               (EVAL (second xs)
-                     (λ (x)
-                       (++ "var "(id (first xs))N
-                           (k undefined)))))]
-          [(eq? f 'set!)
-           (EVAL (first xs)
-                 (λ (x)
-                   (EVAL (second xs)
-                         (λ (v)
-                           (++ x"="v N
-                               (k undefined))))))]
-          [(eq? f 'λ) (LAMBDA xs k)]
-          [(eq? f 'return)
-           (EVAL (first xs)
-                 (λ (x)
-                   (++ "return "x N)))]
-          [(eq? f '!) (! xs k)]
-          [(eq? f 'ref)
-           (EVAL (first xs)
-                 (λ (o)
-                   (EVAL (second xs)
-                         (λ (key)
-                           (k (++ o"["key"]"))))))]
-          [(eq? f '@)
-           (EVAL (first xs)
-                 (λ (o)
-                   (k (++ o"."(id (second xs))))))]
-          [(eq? f ':)
-           (EVAL (car xs)
-                 (λ (o)
-                   (let ([xs (cdr xs)])
-                     (EVALxs (cdr xs)
-                             (λ (d)
-                               (k (++ o"."(id (car xs))"("(add-between d ",")")")))))))]
-          [else (EVAL f (λ (f)
-                          (EVALxs xs (λ (xs)
-                                       (k (++ f"("(add-between xs ",")")"))))))])]))
+           [(eq? f 'define)
+            (if (null? (cdr xs))
+                (++ "var "(id (first xs))N
+                    (k undefined))
+                (EVAL (second xs)
+                      (λ (x)
+                        (++ "var "(id (first xs))N
+                            (k undefined)))))]
+           [(eq? f 'set!)
+            (EVAL (first xs)
+                  (λ (x)
+                    (EVAL (second xs)
+                          (λ (v)
+                            (++ x"="v N
+                                (k undefined))))))]
+           [(eq? f 'λ) (LAMBDA xs k)]
+           [(eq? f 'return)
+            (EVAL (first xs)
+                  (λ (x)
+                    (++ "return "x N)))]
+           [(eq? f '!) (! xs (λ (xs)
+                               (++
+                                "({"
+                                (add-between (map (λ (x) (++ (car x)":"(cdr x))) xs) ",") "})")))]
+           [(eq? f 'ref)
+            (EVAL (first xs)
+                  (λ (o)
+                    (EVAL (second xs)
+                          (λ (key)
+                            (k (++ o"["key"]"))))))]
+           [(eq? f '@)
+            (EVAL (first xs)
+                  (λ (o)
+                    (k (++ o"."(id (second xs))))))]
+           [(eq? f ':)
+            (EVAL (car xs)
+                  (λ (o)
+                    (let ([xs (cdr xs)])
+                      (EVALxs (cdr xs)
+                              (λ (d)
+                                (k (++ o"."(id (car xs))"("(add-between d ",")")")))))))]
+           [(eq? f 'begin) (BEGIN xs k)]
+           [(eq? f 'apply)
+            (EVAL (first xs)
+                  (λ (f)
+                    (EVAL (second xs)
+                          (λ (xs)
+                            (k (++ f"(..."xs")"))))))]
+           [else (EVAL f (λ (f)
+                           (EVALxs xs (λ (xs)
+                                        (k (++ f"("(add-between xs ",")")"))))))])]))
+    (define (LAMBDA xs k)
+      (let ([args (car xs)] [body (cdr xs)])
+        (k (++ "(function("(add-between (LAMBDA-ARGS args) ",")"){"
+               (EVAL (cons 'begin body) (λ (x) (++ "return "x N)))"})"))))
+    (define (LAMBDA-ARGS args)
+      (cond
+        [(string? args) (list (++ "..."(id args)))]
+        [(null? args) '()]
+        [else (cons (id (car args)) (LAMBDA-ARGS (cdr args)))]))
+    (define (BEGIN xs k)
+      (cond
+        [(null? (cdr xs)) (EVAL (car xs) k)]
+        [else (EVAL (car xs)
+                    (λ (x)
+                      (++ (ig x) (BEGIN (cdr xs) k))))]))
+    (define (js x) (EVAL x ig))
+    js))
