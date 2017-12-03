@@ -177,13 +177,52 @@
             (let ([x (car xs)] [b (cdr xs)])
               (let ([init (first x)] [c (second x)] [i (third x)])
                 (++ "for("(EVAL init ig)(EVAL c ig)(EVAL i ig)"){"
-                    (BEGIN b ig))))]
+                    (BEGIN b ig)
+                    "}"
+                    (k undefined)
+                    )))]
+           [(eq? f 'while)
+            (let ([x (car xs)] [b (cdr xs)])
+              (EVAL
+               x
+               (λ (x)
+                 (++ "if("x"){"
+                     "while(true){"
+                     (BEGIN b ig)
+                     (EVAL
+                      x
+                      (λ (x)
+                        (++ "if(!"x"){break}")))
+                     "}}"
+                     (k undefined)))))]
+           [(eq? f 'number?) (TYPE? "number" (first xs) k)]
+           [(eq? f 'procedure?) (TYPE? "function" (first xs) k)]
+           [(eq? f 'boolean?) (TYPE? "boolean" (first xs) k)]
+           [(eq? f 'string?) (TYPE? "string" (first xs) k)]
+           [(eq? f 'object/vector?) (TYPE? "object" (first xs) k)]
+           [(eq? f 'vector?) (EVAL (first xs) (λ (x)
+                                              (k (++ "("x" instanceof Array)"))))]
+           [(or (eq? f '->string) (eq? f 'number->string))
+            (EVAL (first x) (λ (x)
+                            (k (++ "String("x")"))))]
+           [(or (eq? f '->number) (eq? f 'string->number))
+            (EVAL (first x) (λ (x)
+                            (k (++ "Number("x")"))))]
+           [(eq? f 'instanceof)
+            (EVAL (first x) (λ (x)
+                              (EVAL (second x) (λ (c)
+                                                 (k (++ "("x" instanceof "c")"))))))]
+           [(eq? f 'typeof)
+            (EVAL (first x) (λ (x) (k (++ "(typeof "x")"))))]
            [else (EVAL f (λ (f)
                            (EVALxs xs (λ (xs)
                                         (k (++ f"("(add-between xs ",")")"))))))])]
         [else (EVAL f (λ (f)
                         (EVALxs xs (λ (xs)
                                      (k (++ f"("(add-between xs ",")")"))))))]))
+    (define (TYPE? t x k)
+      (EVAL x (λ (x)
+                (k (++ "(typeof "x"=='"t"')")))))
     (define (LAMBDA xs k)
       (let ([args (car xs)] [body (cdr xs)])
         (k (++ "(function("(add-between (LAMBDA-ARGS args) ",")"){"
