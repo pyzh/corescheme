@@ -80,7 +80,7 @@
                                (++
                                 "({"
                                 (add-between (map (λ (x) (++ (car x)":"(cdr x))) xs) ",") "})")))]
-           [(eq? f 'ref)
+           [(or (eq? f 'vector-ref) (eq? f 'ref))
             (EVAL (first xs)
                   (λ (o)
                     (EVAL (second xs)
