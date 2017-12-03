@@ -85,9 +85,9 @@
                   (λ (x)
                     (++ "return "x N)))]
            [(eq? f '!) (! xs (λ (xs)
-                               (++
+                               (k (++
                                 "({"
-                                (add-between (map (λ (x) (++ (car x)":"(cdr x))) xs) ",") "})")))]
+                                (add-between (map (λ (x) (++ (car x)":"(cdr x))) xs) ",") "})"))))]
            [(or (eq? f 'vector-ref) (eq? f 'ref))
             (EVAL (first xs)
                   (λ (o)
@@ -126,7 +126,7 @@
                     (++ "if("b"){"
                         (BEGIN (second xs) ig)
                         "}else{"
-                        (BEGIN (thirs xs) ig)
+                        (BEGIN (third xs) ig)
                         "}"
                         (k undefined))))]
            [(eq? f 'vector)
@@ -258,6 +258,10 @@
                (++ "if("b"){throw 'assertion failed!'}"
                    (k undefined))))]
            [(eq? f 'cond/begin) (COND/BEGIN xs k)]
+           [(eq? f 'struct) (let ([s (second xs)])
+                              (++
+                               (STRUCT (first xs) (car s) (cdr s))
+                               (k undefined)))]
            [else (EVAL f (λ (f)
                            (EVALxs xs (λ (xs)
                                         (k (++ f"("(add-between xs ",")")"))))))])]
@@ -316,5 +320,12 @@
                             (++ "else if("a"){"
                                 (BEGIN d ig)
                                 "}" (%COND/BEGIN xs k)))))))))
+    (define (STRUCT pred constructor fields)
+      (let ([t (id (string-append pred "T"))] [pred (id pred)] [constructor (id constructor)] [fields (map id fields)])
+        (++ "var "t"=function(){}"N
+            "var "pred"=function(x){return x instanceof "t N"}"N
+            "var "constructor"="
+            "function("(add-between fields ",")"){var v_=new "t"()"N (map (λ (f) (++ "v_."f"="f N)) fields) "return v_"N"}" N)))
+      
     (define (js x) (EVAL x ig))
     js))

@@ -20,9 +20,9 @@
     (check-equal? (run-sexp (quote c)) (quote r)) ...))
 (define-syntax-rule (load/test [f ...] [c r] ...)
   (check-equal?
-   (run-sexps (append (include/quote/list f) ...
-                      (list (quote (list c ...)))))
-   (list (quote r) ...)))
+   (run-xs (map sexp-> (append (include/quote/list f) ...
+                      (list (quote (list c ...))))))
+   (list (sexp-> (quote r)) ...)))
 (test
  [`(list ,(+ 1 2) 4) (list 3 4)]
  [(let ((name 'a)) `(list ,name ',name)) (list a (quote a))]
@@ -133,11 +133,20 @@
 (load/test
  ["js.cscm"]
  [(js '(begin
-         (define (displayln x)
-           (: console log x))
-         (define writeln displayln)
-         (displayln 0))) |var displayln=(function(x){return console.log(x);});var writeln=displayln;displayln(0);|]
- [(js '(begin
-         (define Map (newtype))
-         (define (Map? x) (is-a? x Map)))) |var Map=(function(){});var zMap_63CZ=(function(x){return (x instanceof Map);});|]
+         (struct map? (%Map x p c))
+         (define (map x) (%Map x (!) 0))
+         (define MapNothing (new (newtype)))
+         (define (MapNothing? x) (eq? x MapNothing))
+         (define (map-has? m k)
+           (not (or (MapNothing? (ref (/ m p) k))
+                    (undefined? (ref (/ m x) k)))))
+         (define (map-get m k t)
+           (define pv (ref (/ m p) k))
+           (cond/begin
+            [(MapNothing? pv) (return (t))]
+            [(undefined? pv)
+             (define v (ref (/ m x) k))
+             (return (if (undefined? v) (t) v))]
+            [else (return pv)]))))
+  0]
  )
